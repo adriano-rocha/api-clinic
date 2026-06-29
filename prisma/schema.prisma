@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MEDICO
+  RECEPCIONISTA
+  PACIENTE
+}
+
+enum StatusConsulta {
+  AGENDADA
+  CONFIRMADA
+  REALIZADA
+  CANCELADA
+}
+
+enum StatusPagamento {
+  PENDENTE
+  APROVADO
+  RECUSADO
+}
+
+model Usuario {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  email     String   @unique
+  senha     String
+  role      Role     @default(PACIENTE)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  paciente  Paciente?
+  medico    Medico?
+  logs      LogAuditoria[]
+}
+
+model Paciente {
+  id         Int       @id @default(autoincrement())
+  usuarioId  Int       @unique
+  telefone   String?
+  dataNasc   DateTime?
+  createdAt  DateTime  @default(now())
+  usuario    Usuario   @relation(fields: [usuarioId], references: [id])
+  consultas  Consulta[]
+  prontuarios Prontuario[]
+  historico  HistoricoConsulta[]
+}
+
+model Medico {
+  id           Int       @id @default(autoincrement())
+  usuarioId    Int       @unique
+  crm          String    @unique
+  especialidade String
+  createdAt    DateTime  @default(now())
+  usuario      Usuario   @relation(fields: [usuarioId], references: [id])
+  consultas    Consulta[]
+}
+
+model Consulta {
+  id         Int            @id @default(autoincrement())
+  pacienteId Int
+  medicoId   Int
+  dataHora   DateTime
+  status     StatusConsulta @default(AGENDADA)
+  observacao String?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  paciente   Paciente       @relation(fields: [pacienteId], references: [id])
+  medico     Medico         @relation(fields: [medicoId], references: [id])
+  pagamento  Pagamento?
+  prontuario Prontuario?
+  historico  HistoricoConsulta?
+}
+
+model Prontuario {
+  id         Int      @id @default(autoincrement())
+  pacienteId Int
+  consultaId Int      @unique
+  descricao  String
+  createdAt  DateTime @default(now())
+  paciente   Paciente @relation(fields: [pacienteId], references: [id])
+  consulta   Consulta @relation(fields: [consultaId], references: [id])
+}
+
+model Pagamento {
+  id         Int             @id @default(autoincrement())
+  consultaId Int             @unique
+  status     StatusPagamento @default(PENDENTE)
+  metodo     String
+  valor      Decimal
+  payload    Json?
+  createdAt  DateTime        @default(now())
+  consulta   Consulta        @relation(fields: [consultaId], references: [id])
+}
+
+model HistoricoConsulta {
+  id         Int      @id @default(autoincrement())
+  pacienteId Int
+  consultaId Int      @unique
+  createdAt  DateTime @default(now())
+  paciente   Paciente @relation(fields: [pacienteId], references: [id])
+  consulta   Consulta @relation(fields: [consultaId], references: [id])
+}
+
+model LogAuditoria {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int?
+  acao      String
+  detalhes  String?
+  createdAt DateTime @default(now())
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id])
+}
